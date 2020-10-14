@@ -33,11 +33,13 @@ makeMask = function(Qppp)
 #  								function ppmMixEngine
 #------------------------------------------------------------------------------------
 
-ppmMixEngine = function(Known.ppp, Unknown.ppp, quadsenv, ppmform, n.sp, 
-                        initweights = c("knn", "kps", "kmeans", "random", "CoinF"), 
-                        k=k, ks=ks, nstart=nstart, cov.bias=NULL, SetValBias = NULL, rAreaInter=NULL,
-                        verbose = TRUE, tol = 0.00001, maxit = 50, plots = FALSE, classif = c("soft", "hard"))
+ppmMixEngine = function(Known.ppp, Unknown.ppp, quadsenv, ppmform,  
+                        initweights = c("knn", "kps", "kmeans", "random", "CoinF"), cov.list,
+                        k=1, ks=1, nstart=nstart, cov.bias=NULL, SetValBias = NULL, rAreaInter=NULL,
+                        verbose = TRUE, tol = 0.00001, maxit = 50, plots = FALSE, classif = c("hard", "soft"))
 {
+  
+  n.sp = length(unique(marks(Known.ppp)))
   
   datappp = superimpose.ppp(Known.ppp, Unknown.ppp)
   # define some objects
@@ -48,19 +50,19 @@ ppmMixEngine = function(Known.ppp, Unknown.ppp, quadsenv, ppmform, n.sp,
   nclust  = length(unique(datamarks)) - 1
   
   # prepare quadrature ppp
-  winMix   = owin(xrange = c(min(Quadmat$X)-0.5, max(Quadmat$X)+0.5), 
-               yrange = c(min(Quadmat$Y)-0.5, max(Quadmat$Y)+0.5))
-  quads. = ppp(Quadmat$X, Quadmat$Y, window = winMix)
+  winMix   = owin(xrange = c(min(quadsenv$X)-0.5, max(quadsenv$X)+0.5), 
+               yrange = c(min(quadsenv$Y)-0.5, max(quadsenv$Y)+0.5))
+  quads. = ppp(quadsenv$X, quadsenv$Y, window = winMix)
   Qmask = makeMask(quads.)
   
   # prepare list of images of covariates
   cov.list = list()
   names.env = c()
-  for (v in 1:(length(Quadmat)-2))
+  for (v in 1:(length(quadsenv)-2))
   {
-    v.v = as.im(data.frame(x = Quadmat$X, y = Quadmat$Y, z = Quadmat[,v+2]))
+    v.v = as.im(data.frame(x = quadsenv$X, y = quadsenv$Y, z = quadsenv[,v+2]))
     cov.list[[v]] = v.v
-    names.env[v] = names(Quadmat)[v+2]
+    names.env[v] = names(quadsenv)[v+2]
   }
   names(cov.list) = names.env
   
@@ -480,7 +482,7 @@ ppmMixEngine = function(Known.ppp, Unknown.ppp, quadsenv, ppmform, n.sp,
     
     if (plots == TRUE)
     {
-      plot(envelope(iterppp))
+      #plot(envelope(iterppp))
       plot(fitaft.pred, main="predict - log(fitaft.pred)")
     }
     
@@ -488,12 +490,12 @@ ppmMixEngine = function(Known.ppp, Unknown.ppp, quadsenv, ppmform, n.sp,
     
     fitted.mix = fit1.after$internal$glmfit$fitted.values
     
-    m.cor <- markcorr(iterppp)
+    #m.cor <- markcorr(iterppp)
     
-    if (plots == TRUE)
-    {
-      plot(m.cor)
-    }
+    #if (plots == TRUE)
+    #{
+    #  plot(m.cor)
+    #}
     
     # end M-step
     
@@ -801,7 +803,9 @@ ppmMixEngine = function(Known.ppp, Unknown.ppp, quadsenv, ppmform, n.sp,
               probs = p,
               niter = niter, maxit = maxit,
               converged = (niter >= maxit),
+              classif = classif,
               New_weights = round(iterweights, digits = 4),
+              Weight.df = Weight.df,
               pfit.b = pfit.b,
               pfit.af = pfit.af,
               #fitted.mix = fitted.mix,
@@ -860,10 +864,12 @@ scoreweights = function(sp.xy, quad.xy, coord = c("X", "Y"), scores = NULL)
 #  								function ppmAddEngine
 #------------------------------------------------------------------------------------
 
-ppmLoopEngine = function(Known.ppp, Unknown.ppp, n.sp, addpt = c("LoopA","LoopT", "LoopE"), quadsenv,
-                         ppmform, delta_max=NULL, delta_min=NULL, delta_step =NULL, num.add = NULL,
+ppmLoopEngine = function(Known.ppp, Unknown.ppp, addpt = c("LoopA","LoopT", "LoopE"), quadsenv,
+                         ppmform, delta_max=0.9, delta_min=0.5, delta_step =0.1, num.add = 1,
                          cov.bias=NULL, SetValBias =NULL, rAreaInter=NULL, maxit = 50,
                          tol=0.000001, verbose = TRUE, plots = FALSE){
+  
+  n.sp = length(unique(marks(Known.ppp)))
   
   datappp = superimpose.ppp(Known.ppp, Unknown.ppp)
   # Define some objects
@@ -881,19 +887,19 @@ ppmLoopEngine = function(Known.ppp, Unknown.ppp, n.sp, addpt = c("LoopA","LoopT"
   }
   
   # prepare quadrature ppp
-  winMix   = owin(xrange = c(min(Quadmat$X)-0.5, max(Quadmat$X)+0.5), 
-                  yrange = c(min(Quadmat$Y)-0.5, max(Quadmat$Y)+0.5))
-  quads. = ppp(Quadmat$X, Quadmat$Y, window = winMix)
+  winMix   = owin(xrange = c(min(quadsenv$X)-0.5, max(quadsenv$X)+0.5), 
+                  yrange = c(min(quadsenv$Y)-0.5, max(quadsenv$Y)+0.5))
+  quads. = ppp(quadsenv$X, quadsenv$Y, window = winMix)
   Qmask = makeMask(quads.)
   
   # prepare list of images of covariates
   cov.list = list()
   names.env = c()
-  for (v in 1:(length(Quadmat)-2))
+  for (v in 1:(length(quadsenv)-2))
   {
-    v.v = as.im(data.frame(x = Quadmat$X, y = Quadmat$Y, z = Quadmat[,v+2]))
+    v.v = as.im(data.frame(x = quadsenv$X, y = quadsenv$Y, z = quadsenv[,v+2]))
     cov.list[[v]] = v.v
-    names.env[v] = names(Quadmat)[v+2]
+    names.env[v] = names(quadsenv)[v+2]
   }
   names(cov.list) = names.env
   
@@ -1210,6 +1216,21 @@ ppmLoopEngine = function(Known.ppp, Unknown.ppp, n.sp, addpt = c("LoopA","LoopT"
     }
   }
   
+  fitaft.pred=list()
+  # For predictions
+  for (i in 1:nclust) {
+  if(is.null(cov.bias))
+  {
+    fitaft.pred[[i]]  = predict(ppm_list[[i]], covariates=cov.list)
+  }
+  else
+  {
+    fitaft.pred[[i]]  = predict(ppm_list[[i]], covariates = pred.list)
+  }
+  }
+  
+  
+  
   if (plots == TRUE)
   {
     par(xpd=NA)
@@ -1231,7 +1252,8 @@ ppmLoopEngine = function(Known.ppp, Unknown.ppp, n.sp, addpt = c("LoopA","LoopT"
               New_weights = test_wts,
               Newpts_w = test_wts,
               all_wts = all_wts,
-              ppm_list = ppm_list,
+              Weight.df = test_wts,
+              fit.final = ppm_list,
               niter = niter, 
               ppm.pred.list = pr_ppm_list,
               ppm.pred.list.unk = pr_ppm_list.unk,
@@ -1240,7 +1262,9 @@ ppmLoopEngine = function(Known.ppp, Unknown.ppp, n.sp, addpt = c("LoopA","LoopT"
               delta_max = delta_max,
               delta_min = delta_min,
               delta_step = delta_step,
+              classif = "Loop",
               pred.loc = pred.loc,
+              fitaft.pred=fitaft.pred,
               sp_aug.list = sp_aug.list,
               Known.ppp = Known.ppp,
               Unknown.ppp =Unknown.ppp
@@ -1349,7 +1373,10 @@ RSS = function(weightmatrix, Unknown_labels)
 }
 
 ###----------------- Accuracy
-Accuracy = function(Known.ppp, New_weights, Unknown_labels, n.sp){
+Accuracy = function(Known.ppp, New_weights, Unknown_labels){
+  
+  n.sp = length(unique(marks(Known.ppp)))
+  
   W.max = apply(New_weights[(1:nrow(New_weights)),], 1, max)
   C.id = apply(New_weights[(1:nrow(New_weights)),], 1, which.max)
   
@@ -1389,17 +1416,18 @@ Accuracy = function(Known.ppp, New_weights, Unknown_labels, n.sp){
 }
 
 
-Perffunc = function(fit, sp_int.list, fun = "Else", rescale = TRUE, 
-                    method=c("pearson", "kendall", "spearman"), LoopM=TRUE, 
-                    mu.min = 1.e-5, Known.ppp., Unknown_labels., n.sp, pf = c(NULL)){
+Perffunc = function(fit, sp.int, fun = "Else", rescale = TRUE, 
+                    method=c("pearson", "kendall", "spearman"), 
+                    mu.min = 1.e-5, Known.ppp., Unknown_labels., pf = c(NULL)){
   
   # Set up otpion for initial weights  
+  n.sp = length(unique(marks(Known.ppp)))
   
   datappp = superimpose.ppp(Known.ppp, Unknown.ppp)
   pred = fit$pred.loc
   New_weights = fit$Newpts_w
   
-  if(LoopM==TRUE){
+  if(fit$classif=="Loop"){
     colnames(New_weights)= c(unique(Unknown_labels))
   }
   
@@ -1493,7 +1521,10 @@ Perffunc = function(fit, sp_int.list, fun = "Else", rescale = TRUE,
   
   ###----------------- Accuracy
   
-  Accuracy = function(Known.ppp, New_weights, Unknown_labels, n.sp){
+  Accuracy = function(Known.ppp, New_weights, Unknown_labels){
+    
+    n.sp = length(unique(marks(Known.ppp)))
+    
     W.max = apply(New_weights[(1:nrow(New_weights)),], 1, max)
     C.id = apply(New_weights[(1:nrow(New_weights)),], 1, which.max)
     
@@ -1539,15 +1570,15 @@ Perffunc = function(fit, sp_int.list, fun = "Else", rescale = TRUE,
   if(any(pf)=="IMSE"){
     sp.predlist = IMSEs = list()
     
-    if (LoopM == TRUE){
+    if (fit$LoopM == TRUE){
       for (l in 1:n.sp) {
         sp.predlist[[l]] = as.vector(t(pred[[l]]))
-        IMSEs[[l]] = IMSE(sp_int.list[[l]], sp.predlist[[l]])
+        IMSEs[[l]] = IMSE(sp.int[[l]], sp.predlist[[l]])
       }
     }else{
         for (l in 1:n.sp) {
           sp.predlist[[l]] = as.vector(t(pred[[l]]$v))
-          IMSEs[[l]] = IMSE(sp_int.list[[l]], sp.predlist[[l]])
+          IMSEs[[l]] = IMSE(sp.int[[l]], sp.predlist[[l]])
         }
     }
     
@@ -1559,8 +1590,8 @@ Perffunc = function(fit, sp_int.list, fun = "Else", rescale = TRUE,
     sp.predlist = sumcor1l = sumcor2l = list()
     for (l in 1:n.sp) {
       sp.predlist[[l]] = as.vector(t(pred[[l]]$v))
-      sumcor1l = corint(sp_int.list[[l]], sp.predlist[[l]], method="pearson")
-      sumcor2l = corint(sp_int.list[[l]], sp.predlist[[l]], method="kendall")
+      sumcor1l = corint(sp.int[[l]], sp.predlist[[l]], method="pearson")
+      sumcor2l = corint(sp.int[[l]], sp.predlist[[l]], method="kendall")
     }
     sumcor1 = sum(unlist(sumcor1l))
     sumcor2 = sum(unlist(sumcor2l))
@@ -1572,33 +1603,33 @@ Perffunc = function(fit, sp_int.list, fun = "Else", rescale = TRUE,
   }
   
   if(any(pf)=="Acc"){
-    accmat = Accuracy(Known.ppp, New_weights, Unknown_labels, n.sp)
+    accmat = Accuracy(Known.ppp, New_weights, Unknown_labels)
   }
   
   if(is.null(pf)==TRUE){
-    accmat = Accuracy(Known.ppp, New_weights, Unknown_labels, n.sp)
+    accmat = Accuracy(Known.ppp, New_weights, Unknown_labels)
     #RSSscore = RSS(New_weights, Unknown_labels)
     meanRSS = RSS(New_weights, Unknown_labels)/length(Unknown_labels)
     
     sp.predlist = IMSEs = sumcor1l = sumcor2l = list()
     
-    if (LoopM == TRUE){
+    if (fit$classif=="Loop"){
       for (l in 1:n.sp) {
         sp.predlist[[l]] = as.vector(t(pred[[l]]))
-        IMSEs[[l]] = IMSE(sp_int.list[[l]], sp.predlist[[l]])
+        IMSEs[[l]] = IMSE(sp.int[[l]], sp.predlist[[l]])
       }
     }else{
         for (l in 1:n.sp) {
           sp.predlist[[l]] = as.vector(t(pred[[l]]$v))
-          IMSEs[[l]] = IMSE(sp_int.list[[l]], sp.predlist[[l]])
+          IMSEs[[l]] = IMSE(sp.int[[l]], sp.predlist[[l]])
         }
     } 
     IMSEscore = sum(unlist(IMSEs))
     
     for (l in 1:n.sp) {
       #sp.predlist[[l]] = as.vector(t(pred[[l]]$v))
-      sumcor1l[[l]] = corint(sp_int.list[[l]], sp.predlist[[l]], method="pearson")
-      sumcor2l[[l]] = corint(sp_int.list[[l]], sp.predlist[[l]], method="kendall")
+      sumcor1l[[l]] = corint(sp.int[[l]], sp.predlist[[l]], method="pearson")
+      sumcor2l[[l]] = corint(sp.int[[l]], sp.predlist[[l]], method="kendall")
     }
     sumcor1 = sum(unlist(sumcor1l))
     sumcor2 = sum(unlist(sumcor2l))
@@ -1606,7 +1637,7 @@ Perffunc = function(fit, sp_int.list, fun = "Else", rescale = TRUE,
     
   }
   
-  return(list(accmat=accmat, meanRSS=meanRSS, IMSE=IMSEscore, sumcor1=sumcor1, sumcor2=sumcor2))
+  return(list(accmat=accmat, meanRSS=meanRSS, sumIMSE=IMSEscore, sumcor1=sumcor1, sumcor2=sumcor2))
 }
 
 Predlist = function(pred, sp){
@@ -1622,7 +1653,7 @@ Predlist = function(pred, sp){
 # Function to combine the different methods to compare
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-Testsims = function(hidepct, n.sims, sp_sim.list, n.sp=n.sp, k = k, ks=ks, 
+Testsims = function(hidepct, n.sims, sp_sim.list, k = k, ks=ks, 
                     nstart=nstart, quadsenv, cov.bias=NULL, SetValBias=NULL,
                     rAreaInter=NULL, delta_max=delta_max, delta_min=delta_min, 
                     delta_step =delta_step, num.add = num.add)
@@ -1744,37 +1775,38 @@ Testsims = function(hidepct, n.sims, sp_sim.list, n.sp=n.sp, k = k, ks=ks,
       
       datappp = superimpose.ppp(Known.ppp, Unknown.ppp)
       
+      n.sp = length(unique(marks(Known.ppp)))
       
       
       ###
       #  Mixture model
       ###---
       simknn = ppmMixEngine(Known.ppp, Unknown.ppp, quadsenv = Quadmat,
-                            initweights = "knn", n.sp=n.sp, 
+                            initweights = "knn", #n.sp=n.sp, 
                             k=k, ks=ks, nstart=nstart, ppmform = ppmform, 
                             cov.bias = cov.bias, SetValBias = SetValBias, rAreaInter = rAreaInter,
                             verbose = TRUE, tol = 0.000001, maxit = 50, plots = FALSE)
       
       simkmeans = ppmMixEngine(Known.ppp, Unknown.ppp, quadsenv = Quadmat,
-                               initweights = "kmeans", n.sp=n.sp,
+                               initweights = "kmeans", #n.sp=n.sp,
                                k=k, ks=ks, nstart=nstart, ppmform = ppmform, 
                                cov.bias = cov.bias, SetValBias = SetValBias, rAreaInter = rAreaInter,
                                verbose = TRUE, tol = 0.000001, maxit = 50, plots = FALSE)
       
       simrandom = ppmMixEngine(Known.ppp, Unknown.ppp, quadsenv = Quadmat,
-                               initweights = "random", n.sp=n.sp,
+                               initweights = "random", #n.sp=n.sp,
                                k=k, ks=ks, nstart=NULL, ppmform = ppmform, 
                                cov.bias = cov.bias, SetValBias = SetValBias, rAreaInter = rAreaInter,
                                verbose = TRUE, tol = 0.000001, maxit = 50, plots = FALSE)
       
       simCF = ppmMixEngine(Known.ppp, Unknown.ppp, quadsenv = Quadmat,
-                           initweights = "CoinF", n.sp=n.sp,
+                           initweights = "CoinF", #n.sp=n.sp,
                            k=NULL, ks=NULL, nstart=NULL, ppmform = ppmform,
                            cov.bias = cov.bias, SetValBias = SetValBias, rAreaInter = rAreaInter,
                            verbose = TRUE, tol = 0.000001, maxit = 50, plots = FALSE)
       
       simkps = ppmMixEngine(Known.ppp, Unknown.ppp, quadsenv = Quadmat, 
-                            initweights = "kps", n.sp=n.sp,
+                            initweights = "kps", #n.sp=n.sp,
                             k=NULL, ks=ks, nstart=nstart, ppmform = ppmform,
                             cov.bias = cov.bias, SetValBias = SetValBias, rAreaInter = rAreaInter,
                             verbose = TRUE, tol = 0.000001, maxit = 50, plots = FALSE)
@@ -1804,15 +1836,15 @@ Testsims = function(hidepct, n.sims, sp_sim.list, n.sp=n.sp, k = k, ks=ks,
       W.CF[[i]][[j]] = CF_weights
       
       
-      accmatknn[j, i] = Accuracy(Known.ppp, knn_weights, Unknown_labels, n.sp)
+      accmatknn[j, i] = Accuracy(Known.ppp, knn_weights, Unknown_labels)
       RSSknn[j, i] = RSS(pred.knn, Unknown_labels)
       meanRSSknn[j, i] = RSS(pred.knn, Unknown_labels)/length(Unknown_labels)
       
-      accmatkmeans[j, i] = Accuracy(Known.ppp, kmeans_weights, Unknown_labels, n.sp)
+      accmatkmeans[j, i] = Accuracy(Known.ppp, kmeans_weights, Unknown_labels)
       RSSkmeans[j, i] = RSS(pred.kmeans, Unknown_labels)
       meanRSSkmeans[j, i] = RSS(pred.kmeans, Unknown_labels)/length(Unknown_labels)
       
-      accmatrand[j, i] = Accuracy(Known.ppp, random_weights, Unknown_labels, n.sp)
+      accmatrand[j, i] = Accuracy(Known.ppp, random_weights, Unknown_labels)
       RSSrand[j, i] = RSS(pred.random, Unknown_labels)
       meanRSSrand[j, i] = RSS(pred.random, Unknown_labels)/length(Unknown_labels)
       
@@ -1820,11 +1852,11 @@ Testsims = function(hidepct, n.sims, sp_sim.list, n.sp=n.sp, k = k, ks=ks,
       #RSSequal[j, i] = RSS(pred.equal, Unknown_labels)
       #meanRSSequal[j, i] = RSS(pred.equal, Unknown_labels)/length(Unknown_labels)
       
-      accmatCF[j, i] = Accuracy(Known.ppp, CF_weights, Unknown_labels, n.sp)
+      accmatCF[j, i] = Accuracy(Known.ppp, CF_weights, Unknown_labels)
       RSSCF[j, i] = RSS(pred.CF, Unknown_labels)
       meanRSSCF[j, i] = RSS(pred.CF, Unknown_labels)/length(Unknown_labels)
       
-      accmatkps[j, i] = Accuracy(Known.ppp, kps_weights, Unknown_labels, n.sp)
+      accmatkps[j, i] = Accuracy(Known.ppp, kps_weights, Unknown_labels)
       RSSkps[j, i] = RSS(pred.kps, Unknown_labels)
       meanRSSkps[j, i] = RSS(pred.kps, Unknown_labels)/length(Unknown_labels)
       
@@ -2007,17 +2039,17 @@ Testsims = function(hidepct, n.sims, sp_sim.list, n.sp=n.sp, k = k, ks=ks,
       # ppmLoopEngine
       ###---
       
-      simLoopA = ppmLoopEngine(Known.ppp, Unknown.ppp, n.sp, addpt = "LoopA", quadsenv=quadsenv,
+      simLoopA = ppmLoopEngine(Known.ppp, Unknown.ppp, addpt = "LoopA", quadsenv=quadsenv,
                                ppmform=ppmform, delta_max=NULL, delta_min=NULL, delta_step=NULL, num.add = NULL,
                                cov.bias=NULL, SetValBias =NULL, rAreaInter=NULL, maxit = 50,
                                tol=0.000001, verbose = TRUE, plots = FALSE)
       
-      simLoopT = ppmLoopEngine(Known.ppp, Unknown.ppp, n.sp, addpt = "LoopT", quadsenv=quadsenv,
+      simLoopT = ppmLoopEngine(Known.ppp, Unknown.ppp, addpt = "LoopT", quadsenv=quadsenv,
                                ppmform= ppmform, delta_max=delta_max, delta_min=delta_min, delta_step=delta_step, num.add = NULL,
                                cov.bias=NULL, SetValBias =NULL, rAreaInter=NULL, maxit = 50,
                                tol=0.000001, verbose = TRUE, plots = FALSE)
       
-      simLoopE = ppmLoopEngine(Known.ppp, Unknown.ppp, n.sp, addpt = "LoopE", quadsenv=quadsenv,
+      simLoopE = ppmLoopEngine(Known.ppp, Unknown.ppp, addpt = "LoopE", quadsenv=quadsenv,
                                ppmform= ppmform, delta_max=NULL, delta_min=NULL, delta_step=NULL, num.add = num.add,
                                cov.bias=NULL, SetValBias =NULL, rAreaInter=NULL, maxit = 50,
                                tol=0.000001, verbose = TRUE, plots = FALSE)
@@ -2041,15 +2073,15 @@ Testsims = function(hidepct, n.sims, sp_sim.list, n.sp=n.sp, k = k, ks=ks,
       W.LE[[i]][[j]] = LoopE_weights
       
       #
-      accmatLoopA[j, i] = Accuracy(Known.ppp, LoopA_weights, Unknown_labels, n.sp)
+      accmatLoopA[j, i] = Accuracy(Known.ppp, LoopA_weights, Unknown_labels)
       RSSLoopA[j, i] = RSS(pred.LoopA, Unknown_labels)
       meanRSSLoopA[j, i] = RSS(pred.LoopA, Unknown_labels)/length(Unknown_labels)
       
-      accmatLoopT[j, i] = Accuracy(Known.ppp, LoopT_weights, Unknown_labels, n.sp)
+      accmatLoopT[j, i] = Accuracy(Known.ppp, LoopT_weights, Unknown_labels)
       RSSLoopT[j, i] = RSS(pred.LoopT, Unknown_labels)
       meanRSSLoopT[j, i] = RSS(pred.LoopT, Unknown_labels)/length(Unknown_labels)
       
-      accmatLoopE[j, i] = Accuracy(Known.ppp, LoopE_weights, Unknown_labels, n.sp)
+      accmatLoopE[j, i] = Accuracy(Known.ppp, LoopE_weights, Unknown_labels)
       RSSLoopE[j, i] = RSS(pred.LoopE, Unknown_labels)
       meanRSSLoopE[j, i] = RSS(pred.LoopE, Unknown_labels)/length(Unknown_labels)
       
@@ -2563,3 +2595,238 @@ createConfusionMatrix <- function(act, pred) {
   act  <- act[order(act)]
   sapply(split(pred, act), tabulate, nbins=3)
 }
+
+
+
+print.plotlist<-function(xx, layout=matrix(1:length(xx)), more=F) {
+  lty<-NULL
+  if ( is.matrix(layout) ) {
+    lyt <- layout
+    col.widths <- rep.int(1, ncol(lyt))
+    row.heights <- rep.int(1, nrow(lyt))
+  } else if ( is.list(layout) ) {
+    stopifnot(class(layout[[1]]) == "matrix")
+    lyt <- layout[[1]]
+    col.widths <- if (!is.null(layout$widths)) layout$widths else rep.int(1, ncol(lyt))
+    row.heights <- if (!is.null(layout$heights)) layout$heights else rep.int(1, nrow(lyt))
+  }
+  stopifnot(length(col.widths)==ncol(lty))
+  stopifnot(length(row.heights)==nrow(lty))
+  maxi <- max(lyt)
+  col.pts <- cumsum(c(0, col.widths))/sum(col.widths)
+  row.pts <- rev(cumsum(c(0, rev(row.heights)))/sum(row.heights))
+  for(i in 1:length(xx)) {
+    j <-((i-1)%%maxi)+1
+    wch <- which(lyt==j, arr.ind=T)
+    stopifnot(nrow(wch)>0)
+    pos <- apply(wch,2,range)
+    ps <- c(col.pts[pos[1,2]], row.pts[pos[2,1]+1], col.pts[pos[2,2]+1],row.pts[pos[1,1]])
+    print(
+      xx[[i]], 
+      position = ps,
+      #split=c(rev(which(lyt==j, arr.ind=T)),rev(dim(lyt))),
+      more=ifelse(j != maxi & i<length(xx), T, more)
+    )
+  }
+  invisible(F)
+}
+
+
+GroupInt = function(listpred, X, Y, colpred="1", xlab, Ncomp)
+{
+  
+  colpred <- match.arg(colpred)
+  
+  if(colpred=="1"){
+    col.reg = cividis
+  }
+  if(colpred=="2"){
+    col.reg = viridis
+  }
+  if(colpred=="3"){
+    col.reg = magma
+  }
+  
+  Lpred = length(listpred)
+  
+  
+  library(lattice)
+  plots<-lapply(1:Lpred, function(i) {levelplot(listpred[[i]]~X + Y,
+                                                col.regions = col.reg(40),
+                                                colorkey=FALSE,
+                                                scales = list(y = list(draw = FALSE), x = list(draw = FALSE)),
+                                                xlab = xlab[i], ylab = "",              # remove axis title         # change font size for x- & y-axis text
+                                                main = "")})
+  
+  print.plotlist(plots, layout=matrix(1:Lpred, ncol=Ncomp))
+  
+}
+
+Member_prob = function(sim){
+  
+  nclust = length(unique(sim$Known.ppp$marks))
+  
+  #par(xpd=NA)
+  known.marks = unique(sim$iterppp$marks)
+  plot(x=seq_along(sim$Weight.df[,1]), y=sim$Weight.df[,1], col = "orange", pch=16, ylim=c(0,1),
+       xlab="observations", ylab="weight")
+  colvect=c("purple", "turquoise3", "darkred", "green", "brown")[1:nclust-1]
+  for (i in 2:nclust) {
+    points(x=seq_along(sim$Weight.df[,i]), y=sim$Weight.df[,i], col = colvect[i-1], pch=16, ylim=c(0,1))
+    i =i + 1
+    legend(25,0.5, c(known.marks), col = c("orange", colvect),
+           pch = 16, xjust = 1, yjust = 0, merge = FALSE)
+    
+  }
+}
+
+
+Coef_fit=function(sim){
+  
+  if (sim$classif =="Loop"){
+    classif = "soft"
+  }else{
+    classif = sim$classif
+    
+  }
+  n.sp = length(unique(sim$Known.ppp$marks))
+  #classif <- match.arg(classif)
+  
+  if(sim$classif == "hard"){
+    cov.list = sim$fit.final$covariates
+    Coef_mat = matrix(NA, nrow = length(cov.list)+1, ncol = n.sp)
+
+    # Prepare / rearrange coef
+    Coefall = sim$fit.final$coef
+    
+    Coef.rea = Coefall[-2]
+    Coefout= Coefall[2]
+    New.coef = c(Coef.rea[1:n.sp], Coefout, 
+      Coef.rea[(n.sp+1):length(Coef.rea)])
+    
+    int_coef = New.coef[1:n.sp]
+    other_coef = New.coef[-(1:n.sp)]
+    Var_coef = other_coef[1:length(cov.list)]
+    Rest_coef = other_coef[-(1:length(cov.list))]
+    
+    CoefRea = list()
+    Coef_mat[,1] = c(int_coef[1],Var_coef)
+    for (i in 1:(n.sp-1)) {
+        seqnum = seq(from=i, to=length(cov.list)*(n.sp-1), by=n.sp-1)
+        Coef_mat[,i+1] = c(int_coef[i+1], Rest_coef[seqnum]+Var_coef)
+        
+    }
+    
+    mat_colname = c()
+    for (i in 1:n.sp) {
+      mat_colname[i] = paste("Sp_", i, sep = "")
+    }
+    
+  }
+  
+  if(sim$classif == "soft"){
+    cov.list = sim$fit.final[[1]]$covariates
+    Coef_mat = matrix(NA, nrow = length(cov.list)+1, ncol = n.sp)
+    mat_colname = c()
+    for (i in 1:n.sp) {
+      Coef_mat[,i] = sim$fit.final[[i]]$coef
+      mat_colname[i] = paste("Sp_", i, sep = "")
+    }
+    }
+  
+  coefMat = as.data.frame(Coef_mat)
+  colnames(coefMat) = mat_colname
+  rownames(coefMat) = c("Intercept", names(cov.list))
+  coefMat
+}
+
+
+pred_int = function(sim, quadsenv, colpred = c("1", "2", "3")){
+  
+  n.sp = length(unique(sim$Known.ppp$marks))
+  
+  listpred = list()
+  xlab = c()
+  for (i in 1:n.sp) {
+    listpred[[i]] = as.vector(t(simknn$pred.loc[[i]]$v))
+    xlab[i] = paste("Sp_", i, sep = "")
+  }
+  
+  
+  # Choose color
+  library(viridis)
+  colpred <- match.arg(colpred)
+  
+  if(colpred=="1"){
+    col.reg = cividis
+  }
+  if(colpred=="2"){
+    col.reg = viridis
+  }
+  if(colpred=="3"){
+    col.reg = magma
+  }
+  
+  Lpred = length(listpred)
+  library(lattice)
+  plots<-lapply(1:Lpred, function(i) {levelplot(listpred[[i]]~quadsenv$X + quadsenv$Y,
+                                                col.regions = col.reg(40),
+                                                colorkey=FALSE,
+                                                scales = list(y = list(draw = FALSE), x = list(draw = FALSE)),
+                                                xlab = xlab[i], ylab = "",              # remove axis title         # change font size for x- & y-axis text
+                                                main = "")})
+  
+  print.plotlist(plots, layout=matrix(1:Lpred, ncol=n.sp, nrow=1))
+  
+}
+
+
+se_pred = function(fit, ngrid=NULL){
+  se.sim = se.range = se.simdat = list()
+  seplot.sim = seplot.vec = list()  
+  
+  n.sp = length(unique(marks(fit$Known.ppp)))
+  for (i in 1:n.sp) {
+    if(fit$classif=="Loop"){
+      se.sim[[i]] <- predict(fit$fit.final[[i]], locations=fit$sp_aug_ppp.list[[i]], se=TRUE)
+      se.simdat[[i]] = se.sim[[i]]$se
+      
+      if(is.null(ngrid)){
+        seplot.sim[[i]] <- predict(fit$fit.final[[i]], se=TRUE)
+      }else{
+        seplot.sim[[i]] <- predict(fit$fit.final[[i]], se=TRUE, ngrid=ngrid)
+      }
+      
+      seplot.vec[[i]] = as.vector(seplot.sim[[i]]$se$v)
+      se.range[[i]] = se.sim[[i]]$se
+      
+      Xplot = as.data.frame(fit$fitaft.pred[[1]])$x
+      Yplot = as.data.frame(fit$fitaft.pred[[1]])$y
+      
+    }else{
+      se.sim[[i]] <- predict(fit$fit.final[[i]], locations=fit$sp_aug.list[[i]], se=TRUE)
+      se.simdat[[i]] = se.sim[[i]]$se
+      
+      if(is.null(ngrid)){
+        seplot.sim[[i]] <- predict(fit$fit.final[[i]], se=TRUE)
+      }else{
+        seplot.sim[[i]] <- predict(fit$fit.final[[i]], se=TRUE, ngrid=ngrid)
+      }
+
+      seplot.vec[[i]] = as.vector(seplot.sim[[i]]$se$v)
+      se.range[[i]] = se.sim[[i]]$se
+      
+      Xplot = as.data.frame(fit$fitaft.pred[[1]])$x
+      Yplot = as.data.frame(fit$fitaft.pred[[1]])$y
+    }
+  }
+  
+  return(list(se.sim = se.sim, 
+              se.simdat = se.simdat,
+              seplot.sim = seplot.sim,
+              seplot.vec = seplot.vec,
+              se.range = se.range,
+              Xplot = Xplot,
+              Yplot= Yplot))
+}
+
